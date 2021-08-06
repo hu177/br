@@ -62,6 +62,9 @@ func ParseBackend(rawURL string, options *BackendOptions) (*backuppb.StorageBack
 		noop := &backuppb.Noop{}
 		return &backuppb.StorageBackend{Backend: &backuppb.StorageBackend_Noop{Noop: noop}}, nil
 
+	case "hdfs" :
+		local := &backuppb.Local{Path: u.Path}
+		return &backuppb.StorageBackend{Backend: &backuppb.StorageBackend_HDFS{Local: local}},nil
 	case "s3":
 		if u.Host == "" {
 			return nil, errors.Annotatef(berrors.ErrStorageInvalidConfig, "please specify the bucket for s3 in %s", rawURL)
