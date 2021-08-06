@@ -60,4 +60,3 @@ require (
 replace cloud.google.com/go/storage => github.com/3pointer/google-cloud-go/storage v1.6.1-0.20210108125931-b59bfa0720b2
 
 replace github.com/tikv/pd => github.com/tikv/pd v1.1.0-beta.0.20210609101029-3ba158cf41a4
-replace github.com/pingcap/kvproto v0.0.0-20210722091755-91a52cd9e8db => github.com/hu177/kvproto v0.0.0-20210806044708-e5aecdd39e12
