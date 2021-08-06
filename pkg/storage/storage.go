@@ -130,6 +130,14 @@ func Create(ctx context.Context, backend *backuppb.StorageBackend, sendCreds boo
 	})
 }
 
+func WrapNew(ctx context.Context, backend *backuppb.StorageBackend, opts *ExternalStorageOptions, hdfsConfig *HdfsConfig) (ExternalStorage, error) {
+	if hdfsConfig != nil {
+		return newHdfsStorage(ctx, hdfsConfig, opts)
+	} else {
+		return New(ctx, backend, opts)
+	}
+}
+
 // New creates an ExternalStorage with options.
 func New(ctx context.Context, backend *backuppb.StorageBackend, opts *ExternalStorageOptions) (ExternalStorage, error) {
 	switch backend := backend.Backend.(type) {
