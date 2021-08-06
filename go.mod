@@ -1,4 +1,4 @@
-module github.com/pingcap/br
+module github.com/hu177/br
 
 go 1.16
 
