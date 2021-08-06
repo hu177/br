@@ -35,20 +35,21 @@ func ParseRawURL(rawURL string) (*url.URL, error) {
 	return u, nil
 }
 
-func WrapParseBackend(rawURL string,options *BackendOptions)(*backuppb.StorageBackend,*HdfsConfig,error){
+func WrapParseBackend(rawURL string, options *BackendOptions) (*backuppb.StorageBackend, *HdfsConfig, error) {
 	if len(rawURL) == 0 {
-		return nil, nil,errors.Annotate(berrors.ErrStorageInvalidConfig, "empty store is not allowed")
+		return nil, nil, errors.Annotate(berrors.ErrStorageInvalidConfig, "empty store is not allowed")
 	}
 	u, err := ParseRawURL(rawURL)
 	if err != nil {
-		return nil, nil,errors.Trace(err)
+		return nil, nil, errors.Trace(err)
 	}
 	if u.Scheme == "hdfs" {
-		return nil,&HdfsConfig{Address: u.Host},err
+		return nil, &HdfsConfig{Address: u.Host}, err
 	}
-	storageBackend,err := ParseBackend(rawURL,options)
-	return storageBackend,nil,err
+	storageBackend, err := ParseBackend(rawURL, options)
+	return storageBackend, nil, err
 }
+
 // ParseBackend constructs a structured backend description from the
 // storage URL.
 func ParseBackend(rawURL string, options *BackendOptions) (*backuppb.StorageBackend, error) {
@@ -76,9 +77,9 @@ func ParseBackend(rawURL string, options *BackendOptions) (*backuppb.StorageBack
 		noop := &backuppb.Noop{}
 		return &backuppb.StorageBackend{Backend: &backuppb.StorageBackend_Noop{Noop: noop}}, nil
 
-	case "hdfs" :
+	case "hdfs":
 		local := &backuppb.Local{Path: u.Path}
-		return &backuppb.StorageBackend{Backend: &backuppb.StorageBackend_Local{Local: local}},nil
+		return &backuppb.StorageBackend{Backend: &backuppb.StorageBackend_Local{Local: local}}, nil
 	case "s3":
 		if u.Host == "" {
 			return nil, errors.Annotatef(berrors.ErrStorageInvalidConfig, "please specify the bucket for s3 in %s", rawURL)

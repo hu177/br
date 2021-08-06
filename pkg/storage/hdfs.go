@@ -2,15 +2,15 @@ package storage
 
 import (
 	"context"
-	"github.com/colinmarc/hdfs/v2"
-	"github.com/pingcap/errors"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
-)
 
+	"github.com/colinmarc/hdfs/v2"
+	"github.com/pingcap/errors"
+)
 
 // TODO: 在csv写入通路中加入该writer
 // 实现storage.ExternalFileWriter
@@ -83,7 +83,7 @@ func (s *HdfsStorage) Open(ctx context.Context, path string) (ExternalFileReader
 
 // WalkDir traverse all the files in a dir.
 func (s *HdfsStorage) WalkDir(ctx context.Context, opt *WalkOption, fn func(path string, size int64) error) error {
-	//TODO:全路径遍历接口
+	// TODO:全路径遍历接口
 	path := filepath.Join(s.base, opt.SubDir)
 	fileFunction := func(path string, info fs.FileInfo, err error) error {
 		return fn(path, info.Size())
@@ -107,8 +107,8 @@ type HdfsConfig struct {
 
 func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageOptions) (*HdfsStorage, error) {
 	// TODO：定制化配置写入
-	if bdh.Address == ""{
-		bdh.Address	="10.23.229.71:8020"
+	if bdh.Address == "" {
+		bdh.Address = "10.23.229.71:8020"
 	}
 	client, err := hdfs.New(bdh.Address)
 	if err != nil {
@@ -117,10 +117,9 @@ func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageO
 	// 根据当前时间，生成存储文件夹前缀
 	base := strings.Join([]string{"/export", time.Now().Format("2006_01_02T15_04_05")}, "-")
 	// 需要先生成文件夹
-	err = client.Mkdir(base, os.FileMode(0777))
+	err = client.Mkdir(base, os.FileMode(0o777))
 	if err != nil {
 		return nil, errors.Wrapf(err, "Create folder :%v error", base)
 	}
 	return &HdfsStorage{client: client, base: base}, nil
-
 }
