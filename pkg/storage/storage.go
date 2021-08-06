@@ -152,6 +152,14 @@ func Create(ctx context.Context, backend *backuppb.StorageBackend, sendCreds boo
 	})
 }
 
+func WrapNew(ctx context.Context,backend *backuppb.StorageBackend, opts *ExternalStorageOptions,hdfsConfig *HdfsConfig) (ExternalStorage, error) {
+	if hdfsConfig != nil{
+		return newHdfsStorage(ctx,hdfsConfig,opts)
+	} else {
+		return New(ctx,backend,opts)
+	}
+}
+
 // New creates an ExternalStorage with options.
 func New(ctx context.Context, backend *backuppb.StorageBackend, opts *ExternalStorageOptions) (ExternalStorage, error) {
 	switch backend := backend.Backend.(type) {
@@ -172,8 +180,6 @@ func New(ctx context.Context, backend *backuppb.StorageBackend, opts *ExternalSt
 			return nil, errors.Annotate(berrors.ErrStorageInvalidConfig, "GCS config not found")
 		}
 		return newGCSStorage(ctx, backend.Gcs, opts)
-	case *backuppb.StorageBackend_HDFS:
-		return newHdfsStorage(ctx,backend.HDFS,opts)
 	default:
 		return nil, errors.Annotatef(berrors.ErrStorageInvalidConfig, "storage %T is not supported yet", backend)
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/colinmarc/hdfs/v2"
 	"github.com/pingcap/errors"
-	backuppb "github.com/pingcap/kvproto/pkg/backup"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -102,7 +101,11 @@ func (s *HdfsStorage) Create(ctx context.Context, name string) (ExternalFileWrit
 	return &HdfsWriter{writer: w}, errors.Wrap(err, "HdfsStorage create failure")
 }
 
-func newHdfsStorage(ctx context.Context, bdh *backuppb.HDFS, opts *ExternalStorageOptions) (*HdfsStorage, error) {
+type HdfsConfig struct {
+	Address string
+}
+
+func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageOptions) (*HdfsStorage, error) {
 	// TODO：定制化配置写入
 	if bdh.Address == ""{
 		bdh.Address	="10.23.229.71:8020"
