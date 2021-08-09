@@ -43,7 +43,10 @@ func WrapParseBackend(rawURL string, options *BackendOptions) (*backuppb.Storage
 		return nil, nil, errors.Trace(err)
 	}
 	if u.Scheme == "hdfs" {
-		return nil, &HdfsConfig{Address: u.Host}, err
+		if u.Host == "" || u.Path == "" {
+			return nil, nil, errors.New("host and path can not be blank")
+		}
+		return nil, &HdfsConfig{Address: u.Host, Path: u.Path}, err
 	}
 	storageBackend, err := ParseBackend(rawURL, options)
 	return storageBackend, nil, err

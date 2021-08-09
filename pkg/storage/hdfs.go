@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 // TODO: 在csv写入通路中加入该writer
@@ -18,11 +17,13 @@ type HdfsWriter struct {
 }
 
 func (w *HdfsWriter) Write(ctx context.Context, p []byte) (int, error) {
-	defer w.Close(ctx)
 	return w.writer.Write(p)
 }
 
 func (w *HdfsWriter) Close(ctx context.Context) error {
+	if err := w.writer.Flush(); err != nil {
+		return errors.Wrap(err, "HdfsWriter close")
+	}
 	return w.writer.Close()
 }
 
@@ -47,7 +48,7 @@ func (s *HdfsStorage) WriteFile(ctx context.Context, name string, data []byte) e
 		err = s.client.Remove(path)
 		return err
 	}
-	// 文件存在，直接写入
+	// 文件不存在,创建后写入
 	f, err := s.Create(ctx, name)
 	if err != nil {
 		return err
@@ -97,26 +98,26 @@ func (s *HdfsStorage) URI() string {
 func (s *HdfsStorage) Create(ctx context.Context, name string) (ExternalFileWriter, error) {
 	name = filepath.Join(s.base, name)
 	w, err := s.client.Create(name)
-	return &HdfsWriter{writer: w}, errors.Wrap(err, "HdfsStorage create failure")
+	if err != nil {
+		return nil, errors.Wrap(err, "HdfsStorage create failure")
+	}
+	return &HdfsWriter{writer: w}, nil
 }
 
 type HdfsConfig struct {
 	Address string
+	Path    string
 }
 
 func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageOptions) (*HdfsStorage, error) {
-	// TODO：定制化配置写入
-	if bdh.Address == "" {
-		bdh.Address = "10.23.229.71:8020"
-	}
+	// TODO：定制化配置写入 host done
 	client, err := hdfs.New(bdh.Address)
 	if err != nil {
 		return nil, errors.Wrap(err, "newHdfsStorage error")
 	}
-	// 根据当前时间，生成存储文件夹前缀
-	base := strings.Join([]string{"/export", time.Now().Format("2006_01_02T15_04_05")}, "-")
+	base := strings.Join([]string{"/", bdh.Path}, "")
 	// 需要先生成文件夹
-	err = client.Mkdir(base, os.FileMode(0777))
+	err = client.Mkdir(base, os.FileMode(0644))
 	if err != nil {
 		return nil, errors.Wrapf(err, "Create folder :%v error", base)
 	}
