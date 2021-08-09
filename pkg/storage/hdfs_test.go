@@ -7,7 +7,7 @@ import (
 )
 
 func TestWriteFile(t *testing.T) {
-	bdh := HdfsConfig{Address: "10.23.229.71:8020"}
+	bdh := HdfsConfig{}
 	storage, err := newHdfsStorage(context.TODO(), &bdh, &ExternalStorageOptions{})
 	if err != nil {
 		fmt.Println(err)
@@ -18,7 +18,7 @@ func TestWriteFile(t *testing.T) {
 }
 
 func TestWrite(t *testing.T) {
-	bdh := HdfsConfig{Address: "10.23.229.71:8020", Path: "newbee"}
+	bdh := HdfsConfig{Path: "newbee"}
 	ctx := context.Background()
 	storage, err := newHdfsStorage(ctx, &bdh, &ExternalStorageOptions{})
 	if err != nil {

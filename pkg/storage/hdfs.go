@@ -105,13 +105,12 @@ func (s *HdfsStorage) Create(ctx context.Context, name string) (ExternalFileWrit
 }
 
 type HdfsConfig struct {
-	Address string
-	Path    string
+	Path string
 }
 
 func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageOptions) (*HdfsStorage, error) {
-	// TODO：定制化配置写入 host done
-	client, err := hdfs.New(bdh.Address)
+	// 从环境中读取配置文件
+	client, err := hdfs.New("")
 	if err != nil {
 		return nil, errors.Wrap(err, "newHdfsStorage error")
 	}
@@ -122,5 +121,4 @@ func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageO
 		return nil, errors.Wrapf(err, "Create folder :%v error", base)
 	}
 	return &HdfsStorage{client: client, base: base}, nil
-
 }
