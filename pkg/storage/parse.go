@@ -34,6 +34,23 @@ func ParseRawURL(rawURL string) (*url.URL, error) {
 	}
 	return u, nil
 }
+func WrapParseBackend(rawURL string, options *BackendOptions) (*backuppb.StorageBackend, *HdfsConfig, error) {
+	if len(rawURL) == 0 {
+		return nil, nil, errors.Annotate(berrors.ErrStorageInvalidConfig, "empty store is not allowed")
+	}
+	u, err := ParseRawURL(rawURL)
+	if err != nil {
+		return nil, nil, errors.Trace(err)
+	}
+	if u.Scheme == "hdfs" {
+		if u.Host == "" {
+			return nil, nil, errors.New("path can not be blank")
+		}
+		return nil, &HdfsConfig{Path: u.Host}, err
+	}
+	storageBackend, err := ParseBackend(rawURL, options)
+	return storageBackend, nil, err
+}
 
 func WrapParseBackend(rawURL string, options *BackendOptions) (*backuppb.StorageBackend, *HdfsConfig, error) {
 	if len(rawURL) == 0 {
