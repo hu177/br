@@ -2,10 +2,16 @@ package storage
 
 import (
 	"context"
+	"encoding/xml"
+	"fmt"
 	"github.com/colinmarc/hdfs/v2"
+	"github.com/colinmarc/hdfs/v2/hadoopconf"
 	"github.com/pingcap/errors"
+	"github.com/pingcap/log"
 	"io/fs"
+	"io/ioutil"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 )
@@ -63,6 +69,7 @@ func (s *HdfsStorage) ReadFile(ctx context.Context, name string) ([]byte, error)
 	return s.client.ReadFile(path)
 }
 
+//
 func (s *HdfsStorage) FileExists(ctx context.Context, name string) (bool, error) {
 	path := filepath.Join(s.base, name)
 	_, err := s.client.Stat(path)
@@ -104,21 +111,127 @@ func (s *HdfsStorage) Create(ctx context.Context, name string) (ExternalFileWrit
 	return &HdfsWriter{writer: w}, nil
 }
 
-type HdfsConfig struct {
-	Path string
+// 转移文件，目录名前都不需要加/
+func (s *HdfsStorage) MoveDir(dstDir string, srcDir string) error {
+	srcDir =  "/"+srcDir
+	files, err := s.client.ReadDir(srcDir)
+	if err != nil {
+		return errors.Wrap(err, "MoveDir error")
+	}
+	err = s.client.Mkdir(dstDir, 0644)
+	if err != nil {
+		return errors.Wrap(err, "MoveDir error")
+	}
+	for _, v := range files {
+		srcFileName := filepath.Join(srcDir, v.Name())
+		dstFileName := filepath.Join(dstDir, v.Name())
+
+		err = s.client.Rename(srcFileName, dstFileName)
+		if err != nil {
+			fmt.Printf("Rename failure:%v",err)
+			log.Info("Rename failure" + err.Error())
+		}
+	}
+	return nil
 }
 
+type HdfsConfig struct {
+	FilePath     string
+	CoreSiteConf string
+	HdfsSiteConf string
+}
+
+type property struct {
+	Name  string `xml:"name"`
+	Value string `xml:"value"`
+}
+
+type propertyList struct {
+	Property []property `xml:"property"`
+}
+
+func newHdfsClientWithPath(CoreSitePath string, HdfsPath string) (*hdfs.Client, error) {
+	conf, err := loadWithPaths([]string{CoreSitePath, HdfsPath})
+	if err != nil {
+		return nil, err
+	}
+	options := hdfs.ClientOptionsFromConf(conf)
+
+	u, err := user.Current()
+	if err != nil {
+		return nil, err
+	}
+
+	options.User = u.Username
+	return hdfs.NewClient(options)
+}
+
+func loadWithPaths(paths []string) (hadoopconf.HadoopConf, error) {
+	fmt.Printf("Loading WithPaths：%v\n", paths)
+	var conf hadoopconf.HadoopConf
+	for _, file := range paths {
+		pList := propertyList{}
+		f, err := ioutil.ReadFile(file)
+		if os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return conf, err
+		}
+
+		if conf == nil {
+			conf = make(hadoopconf.HadoopConf)
+		}
+
+		err = xml.Unmarshal(f, &pList)
+		if err != nil {
+			return conf, fmt.Errorf("%s: %s", file, err)
+		}
+		for _, prop := range pList.Property {
+			conf[prop.Name] = prop.Value
+		}
+	}
+	return conf, nil
+}
+
+func (s *HdfsStorage) dirExist(dirPath string) (bool, error) {
+	_, err := s.client.Stat(dirPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, errors.Trace(err)
+	}
+	return true, nil
+}
+
+func (s *HdfsStorage) GetBaseDir() string {
+	return s.base
+}
 func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageOptions) (*HdfsStorage, error) {
-	// 从环境中读取配置文件
-	client, err := hdfs.New("")
+	// 从命令行配置中读取配置文件
+	var retStorage HdfsStorage
+	client, err := newHdfsClientWithPath(bdh.CoreSiteConf, bdh.HdfsSiteConf)
 	if err != nil {
 		return nil, errors.Wrap(err, "newHdfsStorage error")
 	}
-	base := strings.Join([]string{"/", bdh.Path}, "")
-	// 需要先生成文件夹
+	retStorage.client = client
+	// 先检查该文件夹是否存在，存在需要清除文件夹内容
+	base := strings.Join([]string{"/", bdh.FilePath}, "")
+	retStorage.base = base
+	log.Info("base:" + base)
+	if isExt, derr := retStorage.dirExist(base); derr == nil && isExt == true {
+		log.Info("dirExist:" + base)
+		err := retStorage.client.RemoveAll(base)
+		if err != nil {
+			return nil, errors.Wrap(err, "newHdfsStorage error")
+		}
+	} else if derr != nil {
+		return nil, errors.Wrap(err, "newHdfsStorage error")
+	}
+	// 生成文件夹
 	err = client.Mkdir(base, os.FileMode(0644))
 	if err != nil {
 		return nil, errors.Wrapf(err, "Create folder :%v error", base)
 	}
-	return &HdfsStorage{client: client, base: base}, nil
+	return &retStorage, nil
 }

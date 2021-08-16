@@ -3,6 +3,7 @@
 package storage
 
 import (
+	"github.com/pingcap/log"
 	"net/url"
 	"path/filepath"
 	"reflect"
@@ -34,6 +35,32 @@ func ParseRawURL(rawURL string) (*url.URL, error) {
 	}
 	return u, nil
 }
+
+func ParseRawQuery(rawQuery string) (CoreSiteConf string, HdfsSiteConf string, err error) {
+	log.Info("ParseRawQuery into ok")
+	confs := strings.Split(rawQuery, "&")
+	err = errors.New("Parameter nums wrong")
+	if len(confs) != 2 {
+		return "", "", err
+	}
+	for _, v := range confs {
+		kv := strings.Split(v, "=")
+		if len(kv) != 2 {
+			return "", "", err
+		}
+		switch kv[0] {
+		case "core":
+			CoreSiteConf = kv[1]
+		case "hdfs":
+			HdfsSiteConf = kv[1]
+		}
+	}
+	if CoreSiteConf == "" || HdfsSiteConf == "" {
+		return "", "", err
+	}
+	return CoreSiteConf, HdfsSiteConf, nil
+}
+
 func WrapParseBackend(rawURL string, options *BackendOptions) (*backuppb.StorageBackend, *HdfsConfig, error) {
 	if len(rawURL) == 0 {
 		return nil, nil, errors.Annotate(berrors.ErrStorageInvalidConfig, "empty store is not allowed")
@@ -44,9 +71,22 @@ func WrapParseBackend(rawURL string, options *BackendOptions) (*backuppb.Storage
 	}
 	if u.Scheme == "hdfs" {
 		if u.Host == "" {
-			return nil, nil, errors.New("path can not be blank")
+			return nil, nil, errors.New("url path can not be blank")
 		}
-		return nil, &HdfsConfig{Path: u.Host}, err
+		if u.RawQuery == "" {
+			return nil, nil, errors.New("url query can't be blank")
+		}
+		log.Info("raw query string:" + u.RawQuery)
+		coreConf, hdfsConf, err := ParseRawQuery(u.RawQuery)
+		if coreConf == "" || hdfsConf == "" {
+			log.Error("corePath" + coreConf)
+			return nil, nil, errors.New("url query error")
+		}
+		return nil, &HdfsConfig{
+			FilePath:     u.Host,
+			CoreSiteConf: coreConf,
+			HdfsSiteConf: hdfsConf,
+		}, err
 	}
 	storageBackend, err := ParseBackend(rawURL, options)
 	return storageBackend, nil, err
