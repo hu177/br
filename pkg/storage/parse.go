@@ -3,12 +3,13 @@
 package storage
 
 import (
-	"github.com/pingcap/log"
 	"net/url"
 	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/pingcap/log"
 
 	"github.com/pingcap/errors"
 	backuppb "github.com/pingcap/kvproto/pkg/backup"
@@ -70,7 +71,7 @@ func WrapParseBackend(rawURL string, options *BackendOptions) (*backuppb.Storage
 		return nil, nil, errors.Trace(err)
 	}
 	if u.Scheme == "hdfs" {
-		if u.Host == "" {
+		if u.Path == "" {
 			return nil, nil, errors.New("url path can not be blank")
 		}
 		if u.RawQuery == "" {
@@ -83,7 +84,7 @@ func WrapParseBackend(rawURL string, options *BackendOptions) (*backuppb.Storage
 			return nil, nil, errors.New("url query error")
 		}
 		return nil, &HdfsConfig{
-			FilePath:     u.Host,
+			FilePath:     u.Path,
 			CoreSiteConf: coreConf,
 			HdfsSiteConf: hdfsConf,
 		}, err

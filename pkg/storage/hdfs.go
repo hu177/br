@@ -4,16 +4,20 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
-	"github.com/colinmarc/hdfs/v2"
-	"github.com/colinmarc/hdfs/v2/hadoopconf"
-	"github.com/pingcap/errors"
-	"github.com/pingcap/log"
 	"io/fs"
 	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
 	"strings"
+
+	"github.com/colinmarc/hdfs/v2"
+	"github.com/colinmarc/hdfs/v2/hadoopconf"
+	"github.com/pingcap/errors"
+	"github.com/pingcap/log"
+	krb "gopkg.in/jcmturner/gokrb5.v7/client"
+	"gopkg.in/jcmturner/gokrb5.v7/config"
+	"gopkg.in/jcmturner/gokrb5.v7/credentials"
 )
 
 // TODO: 在csv写入通路中加入该writer
@@ -90,7 +94,7 @@ func (s *HdfsStorage) Open(ctx context.Context, path string) (ExternalFileReader
 
 // WalkDir traverse all the files in a dir.
 func (s *HdfsStorage) WalkDir(ctx context.Context, opt *WalkOption, fn func(path string, size int64) error) error {
-	//TODO:全路径遍历接口
+	// TODO:全路径遍历接口
 	path := filepath.Join(s.base, opt.SubDir)
 	fileFunction := func(path string, info fs.FileInfo, err error) error {
 		return fn(path, info.Size())
@@ -113,12 +117,11 @@ func (s *HdfsStorage) Create(ctx context.Context, name string) (ExternalFileWrit
 
 // 转移文件，目录名前都不需要加/
 func (s *HdfsStorage) MoveDir(dstDir string, srcDir string) error {
-	srcDir = "/" + srcDir
 	files, err := s.client.ReadDir(srcDir)
 	if err != nil {
 		return errors.Wrap(err, "MoveDir error")
 	}
-	err = s.client.Mkdir(dstDir, 0644)
+	err = s.client.Mkdir(dstDir, 0o644)
 	if err != nil {
 		return errors.Wrap(err, "MoveDir error")
 	}
@@ -154,11 +157,61 @@ func ClientOptionsFromConf(conf hadoopconf.HadoopConf) hdfs.ClientOptions {
 	options := hdfs.ClientOptions{Addresses: conf.Namenodes()}
 
 	options.UseDatanodeHostname = (conf["dfs.client.use.datanode.hostname"] == "true")
+
+	if strings.ToLower(conf["hadoop.security.authentication"]) == "kerberos" {
+		// Set an empty KerberosClient here so that the user is forced to either
+		// unset it (disabling kerberos altogether) or replace it with a valid
+		// client. If the user does neither, NewClient will return an error.
+		options.KerberosClient = &krb.Client{}
+	}
+
 	if conf["dfs.namenode.kerberos.principal"] != "" {
 		options.KerberosServicePrincipleName = strings.Split(conf["dfs.namenode.kerberos.principal"], "@")[0]
 	}
 
 	return options
+}
+
+func getKerberosClient() (*krb.Client, error) {
+	configPath := os.Getenv("KRB5_CONFIG")
+	if configPath == "" {
+		configPath = "/etc/krb5.conf"
+	}
+
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Determine the ccache location from the environment, falling back to the
+	// default location.
+	ccachePath := os.Getenv("KRB5CCNAME")
+	if strings.Contains(ccachePath, ":") {
+		if strings.HasPrefix(ccachePath, "FILE:") {
+			ccachePath = strings.SplitN(ccachePath, ":", 2)[1]
+		} else {
+			return nil, fmt.Errorf("unusable ccache: %s", ccachePath)
+		}
+	} else if ccachePath == "" {
+		u, err := user.Current()
+		if err != nil {
+			return nil, err
+		}
+
+		ccachePath = fmt.Sprintf("/tmp/krb5cc_%s", u.Uid)
+	}
+
+	ccache, err := credentials.LoadCCache(ccachePath)
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := krb.NewClientFromCCache(ccache, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
 }
 
 func newHdfsClientWithPath(CoreSitePath string, HdfsPath string) (*hdfs.Client, error) {
@@ -174,6 +227,13 @@ func newHdfsClientWithPath(CoreSitePath string, HdfsPath string) (*hdfs.Client, 
 	}
 
 	options.User = u.Username
+	if options.KerberosClient != nil {
+		options.KerberosClient, err = getKerberosClient()
+		if err != nil {
+			return nil, errors.Wrap(err, "getKerberosClient failure")
+		}
+	}
+
 	return hdfs.NewClient(options)
 }
 
@@ -218,6 +278,7 @@ func (s *HdfsStorage) dirExist(dirPath string) (bool, error) {
 func (s *HdfsStorage) GetBaseDir() string {
 	return s.base
 }
+
 func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageOptions) (*HdfsStorage, error) {
 	// 从命令行配置中读取配置文件
 	var retStorage HdfsStorage
@@ -227,7 +288,7 @@ func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageO
 	}
 	retStorage.client = client
 	// 先检查该文件夹是否存在，存在需要清除文件夹内容
-	base := strings.Join([]string{"/", bdh.FilePath}, "")
+	base := bdh.FilePath
 	retStorage.base = base
 	log.Info("base:" + base)
 	if isExt, derr := retStorage.dirExist(base); derr == nil && isExt == true {
@@ -240,7 +301,7 @@ func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageO
 		return nil, errors.Wrap(err, "newHdfsStorage error")
 	}
 	// 生成文件夹
-	err = client.Mkdir(base, os.FileMode(0644))
+	err = client.Mkdir(base, os.FileMode(0o644))
 	if err != nil {
 		return nil, errors.Wrapf(err, "Create folder :%v error", base)
 	}
