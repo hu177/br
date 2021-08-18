@@ -113,7 +113,7 @@ func (s *HdfsStorage) Create(ctx context.Context, name string) (ExternalFileWrit
 
 // 转移文件，目录名前都不需要加/
 func (s *HdfsStorage) MoveDir(dstDir string, srcDir string) error {
-	srcDir =  "/"+srcDir
+	srcDir = "/" + srcDir
 	files, err := s.client.ReadDir(srcDir)
 	if err != nil {
 		return errors.Wrap(err, "MoveDir error")
@@ -128,7 +128,7 @@ func (s *HdfsStorage) MoveDir(dstDir string, srcDir string) error {
 
 		err = s.client.Rename(srcFileName, dstFileName)
 		if err != nil {
-			fmt.Printf("Rename failure:%v",err)
+			fmt.Printf("Rename failure:%v", err)
 			log.Info("Rename failure" + err.Error())
 		}
 	}
@@ -150,12 +150,23 @@ type propertyList struct {
 	Property []property `xml:"property"`
 }
 
+func ClientOptionsFromConf(conf hadoopconf.HadoopConf) hdfs.ClientOptions {
+	options := hdfs.ClientOptions{Addresses: conf.Namenodes()}
+
+	options.UseDatanodeHostname = (conf["dfs.client.use.datanode.hostname"] == "true")
+	if conf["dfs.namenode.kerberos.principal"] != "" {
+		options.KerberosServicePrincipleName = strings.Split(conf["dfs.namenode.kerberos.principal"], "@")[0]
+	}
+
+	return options
+}
+
 func newHdfsClientWithPath(CoreSitePath string, HdfsPath string) (*hdfs.Client, error) {
 	conf, err := loadWithPaths([]string{CoreSitePath, HdfsPath})
 	if err != nil {
 		return nil, err
 	}
-	options := hdfs.ClientOptionsFromConf(conf)
+	options := ClientOptionsFromConf(conf)
 
 	u, err := user.Current()
 	if err != nil {
