@@ -74,11 +74,10 @@ func WrapParseBackend(rawURL string, options *BackendOptions) (*backuppb.Storage
 		if u.Path == "" {
 			return nil, nil, errors.New("url path can not be blank")
 		}
-		if u.RawQuery == "" {
-			return nil, nil, errors.New("url query can't be blank")
+		var coreConf, hdfsConf string
+		if u.RawQuery != "" {
+			coreConf, hdfsConf, err = ParseRawQuery(u.RawQuery)
 		}
-		log.Info("raw query string:" + u.RawQuery)
-		coreConf, hdfsConf, err := ParseRawQuery(u.RawQuery)
 		if coreConf == "" {
 			coreConf = "/usr/local/bin/core-site.xml"
 		}
