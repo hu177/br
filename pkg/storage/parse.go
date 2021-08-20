@@ -79,9 +79,11 @@ func WrapParseBackend(rawURL string, options *BackendOptions) (*backuppb.Storage
 		}
 		log.Info("raw query string:" + u.RawQuery)
 		coreConf, hdfsConf, err := ParseRawQuery(u.RawQuery)
-		if coreConf == "" || hdfsConf == "" {
-			log.Error("corePath" + coreConf)
-			return nil, nil, errors.New("url query error")
+		if coreConf == "" {
+			coreConf = "/usr/local/bin/core-site.xml"
+		}
+		if hdfsConf == "" {
+			hdfsConf = "/usr/local/bin/hdfs-site.xml"
 		}
 		return nil, &HdfsConfig{
 			FilePath:     u.Path,
