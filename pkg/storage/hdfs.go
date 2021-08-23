@@ -42,7 +42,7 @@ type HdfsReader hdfs.FileReader
 
 // 实现storage.ExternalStorage接口
 type HdfsStorage struct {
-	base   string
+	base   string // 指的是tmp目录
 	client *hdfs.Client
 }
 
@@ -115,16 +115,13 @@ func (s *HdfsStorage) Create(ctx context.Context, name string) (ExternalFileWrit
 	return &HdfsWriter{writer: w}, nil
 }
 
-// 转移文件，目录名前都不需要加/
+// 从提供目录的.dumptmp文件夹下转移文件到外部，并删除dumptmp目录
 func (s *HdfsStorage) MoveDir(dstDir string, srcDir string) error {
 	files, err := s.client.ReadDir(srcDir)
 	if err != nil {
-		return errors.Wrap(err, "MoveDir error")
+		return errors.Wrapf(err, "ReadDir %v error", srcDir)
 	}
-	err = s.client.Mkdir(dstDir, 0o644)
-	if err != nil {
-		return errors.Wrap(err, "MoveDir error")
-	}
+
 	for _, v := range files {
 		srcFileName := filepath.Join(srcDir, v.Name())
 		dstFileName := filepath.Join(dstDir, v.Name())
@@ -132,10 +129,10 @@ func (s *HdfsStorage) MoveDir(dstDir string, srcDir string) error {
 		err = s.client.Rename(srcFileName, dstFileName)
 		if err != nil {
 			fmt.Printf("Rename failure:%v", err)
-			log.Info("Rename failure" + err.Error())
 		}
 	}
-	return nil
+
+	return s.client.Remove(srcDir)
 }
 
 type HdfsConfig struct {
@@ -275,6 +272,7 @@ func (s *HdfsStorage) dirExist(dirPath string) (bool, error) {
 	return true, nil
 }
 
+// 返回tmp目录地址
 func (s *HdfsStorage) GetBaseDir() string {
 	return s.base
 }
@@ -289,8 +287,7 @@ func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageO
 	retStorage.client = client
 	// 先检查该文件夹是否存在，存在需要清除文件夹内容
 	base := bdh.FilePath
-	retStorage.base = base
-	log.Info("base:" + base)
+
 	if isExt, derr := retStorage.dirExist(base); derr == nil && isExt == true {
 		log.Info("dirExist:" + base)
 		err := retStorage.client.RemoveAll(base)
@@ -300,10 +297,12 @@ func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageO
 	} else if derr != nil {
 		return nil, errors.Wrap(err, "newHdfsStorage error")
 	}
-	// 生成文件夹
-	err = client.Mkdir(base, os.FileMode(0o644))
+
+	retStorage.base = filepath.Join(base,".dumptmp")
+	// 生成tmp文件夹
+	err = client.MkdirAll(retStorage.base, os.FileMode(0o644))
 	if err != nil {
-		return nil, errors.Wrapf(err, "Create folder :%v error", base)
+		return nil, errors.Wrapf(err, "Create folder :%v error", base + ".dumptmp")
 	}
 	return &retStorage, nil
 }

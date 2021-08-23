@@ -4,9 +4,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"io"
-
 	"github.com/pingcap/errors"
+	"io"
 )
 
 // CompressType represents the type of compression.
