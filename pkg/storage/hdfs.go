@@ -290,19 +290,27 @@ func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageO
 
 	if isExt, derr := retStorage.dirExist(base); derr == nil && isExt == true {
 		log.Info("dirExist:" + base)
-		err := retStorage.client.RemoveAll(base)
+		// 遍历删除所有文件夹中的内容
+		files, err := retStorage.client.ReadDir(base)
 		if err != nil {
 			return nil, errors.Wrap(err, "newHdfsStorage error")
+		}
+		for _, v := range files {
+			filename := filepath.Join(base, v.Name())
+			err := retStorage.client.RemoveAll(filename)
+			if err != nil {
+				return nil, errors.Wrapf(err, "remove file %v error", filename)
+			}
 		}
 	} else if derr != nil {
 		return nil, errors.Wrap(err, "newHdfsStorage error")
 	}
 
-	retStorage.base = filepath.Join(base,".dumptmp")
+	retStorage.base = filepath.Join(base, ".dumptmp")
 	// 生成tmp文件夹
 	err = client.MkdirAll(retStorage.base, os.FileMode(0o644))
 	if err != nil {
-		return nil, errors.Wrapf(err, "Create folder :%v error", base + ".dumptmp")
+		return nil, errors.Wrapf(err, "Create folder :%v error", base+".dumptmp")
 	}
 	return &retStorage, nil
 }
