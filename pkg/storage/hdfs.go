@@ -27,7 +27,8 @@ type HdfsWriter struct {
 }
 
 func (w *HdfsWriter) Write(ctx context.Context, p []byte) (int, error) {
-	return w.writer.Write(p)
+	num, err := w.writer.Write(p)
+	return num, errors.Wrap(err, "hdfs Write")
 }
 
 func (w *HdfsWriter) Close(ctx context.Context) error {
@@ -56,7 +57,9 @@ func (s *HdfsStorage) WriteFile(ctx context.Context, name string, data []byte) e
 	if b == true {
 		// 文件存在，删除重写
 		err = s.client.Remove(path)
-		return err
+		if err != nil {
+			return errors.Wrapf(err, "remove file %v", path)
+		}
 	}
 	// 文件不存在,创建后写入
 	f, err := s.Create(ctx, name)
@@ -64,7 +67,7 @@ func (s *HdfsStorage) WriteFile(ctx context.Context, name string, data []byte) e
 		return err
 	}
 	_, err = f.Write(ctx, data)
-	return err
+	return errors.Wrap(err, "Hdfs writeFile")
 }
 
 // ReadFile reads the file from the storage and returns the contents
