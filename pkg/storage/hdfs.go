@@ -289,7 +289,7 @@ func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageO
 	base := bdh.FilePath
 
 	if isExt, derr := retStorage.dirExist(base); derr == nil && isExt == true {
-		log.Info("dirExist:" + base)
+		log.Info("the dir has exist:" + base + " , it will be deleted")
 		// 遍历删除所有文件夹中的内容
 		files, err := retStorage.client.ReadDir(base)
 		if err != nil {
@@ -297,6 +297,7 @@ func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageO
 		}
 		for _, v := range files {
 			filename := filepath.Join(base, v.Name())
+			log.Info("exist file deleting :" + filename)
 			err := retStorage.client.RemoveAll(filename)
 			if err != nil {
 				return nil, errors.Wrapf(err, "remove file %v error", filename)
