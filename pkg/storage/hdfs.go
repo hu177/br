@@ -110,8 +110,19 @@ func (s *HdfsStorage) URI() string {
 }
 
 func (s *HdfsStorage) Create(ctx context.Context, name string) (ExternalFileWriter, error) {
-	name = filepath.Join(s.base, name)
-	w, err := s.client.Create(name)
+	// 判断是否存在
+	exist, err := s.FileExists(ctx, name)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Find file %v exist error", name)
+	}
+	if exist { // 存在直接删除
+		err = s.client.Remove(name)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Remove file %v error", name)
+		}
+	}
+	cname := filepath.Join(s.base, name)
+	w, err := s.client.Create(cname)
 	if err != nil {
 		return nil, errors.Wrap(err, "HdfsStorage create failure")
 	}
