@@ -115,13 +115,13 @@ func (s *HdfsStorage) Create(ctx context.Context, name string) (ExternalFileWrit
 	if err != nil {
 		return nil, errors.Wrapf(err, "Find file %v exist error", name)
 	}
+	cname := filepath.Join(s.base, name)
 	if exist { // 存在直接删除
-		err = s.client.Remove(name)
+		err = s.client.Remove(cname)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Remove file %v error", name)
 		}
 	}
-	cname := filepath.Join(s.base, name)
 	w, err := s.client.Create(cname)
 	if err != nil {
 		return nil, errors.Wrap(err, "HdfsStorage create failure")
