@@ -27,11 +27,7 @@ type HdfsWriter struct {
 }
 
 func (w *HdfsWriter) Write(ctx context.Context, p []byte) (int, error) {
-	num, err := w.writer.Write(p)
-	if err != nil {
-		return 0, fmt.Errorf("hdfs write errro:%v", err.Error())
-	}
-	return num, nil
+	return w.writer.Write(p)
 }
 
 func (w *HdfsWriter) Close(ctx context.Context) error {
@@ -79,7 +75,7 @@ func (s *HdfsStorage) ReadFile(ctx context.Context, name string) ([]byte, error)
 	return s.client.ReadFile(path)
 }
 
-//
+// 返回true代表存在，返回false代表不存在
 func (s *HdfsStorage) FileExists(ctx context.Context, name string) (bool, error) {
 	path := filepath.Join(s.base, name)
 	_, err := s.client.Stat(path)
@@ -93,14 +89,12 @@ func (s *HdfsStorage) FileExists(ctx context.Context, name string) (bool, error)
 }
 
 func (s *HdfsStorage) Open(ctx context.Context, path string) (ExternalFileReader, error) {
-	// TODO:open 路径整理 done
 	reader, err := s.client.Open(filepath.Join(s.base, path))
 	return reader, errors.Wrap(err, "hdfs open error")
 }
 
 // WalkDir traverse all the files in a dir.
 func (s *HdfsStorage) WalkDir(ctx context.Context, opt *WalkOption, fn func(path string, size int64) error) error {
-	// TODO:全路径遍历接口
 	path := filepath.Join(s.base, opt.SubDir)
 	fileFunction := func(path string, info fs.FileInfo, err error) error {
 		return fn(path, info.Size())
@@ -314,7 +308,6 @@ func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageO
 		}
 		for _, v := range files {
 			filename := filepath.Join(base, v.Name())
-			log.Info("exist file deleting :" + filename)
 			err := retStorage.client.RemoveAll(filename)
 			if err != nil {
 				return nil, errors.Wrapf(err, "remove file %v error", filename)
