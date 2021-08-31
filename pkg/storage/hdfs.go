@@ -27,7 +27,11 @@ type HdfsWriter struct {
 }
 
 func (w *HdfsWriter) Write(ctx context.Context, p []byte) (int, error) {
-	return w.writer.Write(p)
+	n, err := w.writer.Write(p)
+	if err != nil {
+		return 0, errors.Trace(err)
+	}
+	return n, nil
 }
 
 func (w *HdfsWriter) Close(ctx context.Context) error {
