@@ -329,3 +329,15 @@ func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageO
 	}
 	return &retStorage, nil
 }
+
+// 进行HDFS的重连,重连错误，直接返回原来的链接
+func (s *HdfsStorage) ReConnect() (*HdfsStorage, error) {
+	var retStorage HdfsStorage
+	retStorage.base = s.base
+	client, err := newHdfsClientWithPath("/usr/local/bin/core-site.xml", "/usr/local/bin/hdfs-site.xml")
+	if err != nil {
+		return s, errors.Wrap(err, "Create client failure")
+	}
+	retStorage.client = client
+	return &retStorage, nil
+}
