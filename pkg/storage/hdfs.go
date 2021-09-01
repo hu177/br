@@ -4,13 +4,6 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
-	"io/fs"
-	"io/ioutil"
-	"os"
-	"os/user"
-	"path/filepath"
-	"strings"
-
 	"github.com/colinmarc/hdfs/v2"
 	"github.com/colinmarc/hdfs/v2/hadoopconf"
 	"github.com/pingcap/errors"
@@ -18,6 +11,12 @@ import (
 	krb "gopkg.in/jcmturner/gokrb5.v7/client"
 	"gopkg.in/jcmturner/gokrb5.v7/config"
 	"gopkg.in/jcmturner/gokrb5.v7/credentials"
+	"io/fs"
+	"io/ioutil"
+	"os"
+	"os/user"
+	"path/filepath"
+	"strings"
 )
 
 // TODO: 在csv写入通路中加入该writer
@@ -299,7 +298,11 @@ func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageO
 	// 先检查该文件夹是否存在，存在需要清除文件夹内容
 	base := bdh.FilePath
 
-	if isExt, derr := retStorage.dirExist(base); derr == nil && isExt == true {
+	isExt, derr := retStorage.dirExist(base)
+	if derr != nil {
+		return nil, errors.Wrap(err, "newHdfsStorage error")
+	}
+	if isExt {
 		log.Info("the dir has exist:" + base + " , it will be deleted")
 		// 遍历删除所有文件夹中的内容
 		files, err := retStorage.client.ReadDir(base)
@@ -313,8 +316,6 @@ func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageO
 				return nil, errors.Wrapf(err, "remove file %v error", filename)
 			}
 		}
-	} else if derr != nil {
-		return nil, errors.Wrap(err, "newHdfsStorage error")
 	}
 
 	retStorage.base = filepath.Join(base, ".dumptmp")
