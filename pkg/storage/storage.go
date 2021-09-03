@@ -142,6 +142,7 @@ func WrapNew(ctx context.Context, backend *backuppb.StorageBackend, opts *Extern
 		}
 		return storage, err
 	} else {
+		fmt.Println("----------HERE NO OK IN HDFS")
 		return New(ctx, backend, opts)
 	}
 }
