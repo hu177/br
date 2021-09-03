@@ -299,6 +299,9 @@ func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageO
 	}
 	clientOpts := hdfs.ClientOptionsFromConf(clientConf)
 	client, err := hdfs.NewClient(clientOpts)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
 	retStorage := &HdfsStorage{client: client}
 	retStorage.client = client
 	// 先检查该文件夹是否存在，存在需要清除文件夹内容
