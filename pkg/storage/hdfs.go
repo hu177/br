@@ -221,12 +221,9 @@ func getKerberosClient() (*krb.Client, error) {
 	return client, nil
 }
 
-func newHdfsClientWithPath(CoreSitePath string, HdfsPath string) (*hdfs.Client, error) {
-	conf, err := loadWithPaths([]string{CoreSitePath, HdfsPath})
-	if err != nil {
-		return nil, err
-	}
-	options := ClientOptionsFromConf(conf)
+func newHdfsClientWithPath() (*hdfs.Client, error) {
+	conf, err := hadoopconf.Load("/usr/local/bin/")
+	options := hdfs.ClientOptionsFromConf(conf)
 
 	u, err := user.Current()
 	if err != nil {
@@ -340,7 +337,7 @@ func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageO
 func (s *HdfsStorage) ReConnect() (*HdfsStorage, error) {
 	var retStorage HdfsStorage
 	retStorage.base = s.base
-	client, err := newHdfsClientWithPath("/usr/local/bin/core-site.xml", "/usr/local/bin/hdfs-site.xml")
+	client, err := newHdfsClientWithPath()
 	if err != nil {
 		return s, errors.Wrap(err, "Create client failure")
 	}
