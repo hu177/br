@@ -4,6 +4,7 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -132,7 +133,14 @@ func Create(ctx context.Context, backend *backuppb.StorageBackend, sendCreds boo
 
 func WrapNew(ctx context.Context, backend *backuppb.StorageBackend, opts *ExternalStorageOptions, hdfsConfig *HdfsConfig) (ExternalStorage, error) {
 	if hdfsConfig != nil {
-		return newHdfsStorage(ctx, hdfsConfig, opts)
+		storage, err := newHdfsStorage(ctx, hdfsConfig, opts)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		if storage == nil {
+			fmt.Println("!!!!!!!!NIL HERE")
+		}
+		return storage, err
 	} else {
 		return New(ctx, backend, opts)
 	}
