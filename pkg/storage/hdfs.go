@@ -288,7 +288,6 @@ func (s *HdfsStorage) GetBaseDir() string {
 }
 
 func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageOptions) (*HdfsStorage, error) {
-	fmt.Printf("!!!!____--Hdfs config:#%v\n", bdh)
 	// 从命令行配置中读取配置文件
 	client, err := newHdfsClientWithPath(bdh.CoreSiteConf, bdh.HdfsSiteConf)
 	if err != nil {
