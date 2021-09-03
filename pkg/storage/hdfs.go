@@ -286,19 +286,19 @@ func (s *HdfsStorage) GetBaseDir() string {
 
 func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageOptions) (*HdfsStorage, error) {
 	// 从命令行配置中读取配置文件
-	//client, err := newHdfsClientWithPath(bdh.CoreSiteConf, bdh.HdfsSiteConf)
+	client, err := newHdfsClientWithPath()
+	if err != nil {
+		return nil, errors.Wrap(err, "newHdfsStorage error")
+	}
+	//clientConf, err := hadoopconf.Load("/usr/local/bin/")
 	//if err != nil {
-	//	return nil, errors.Wrap(err, "newHdfsStorage error")
+	//	return nil, errors.WithStack(err)
 	//}
-	clientConf, err := hadoopconf.Load("/usr/local/bin/")
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-	clientOpts := hdfs.ClientOptionsFromConf(clientConf)
-	client, err := hdfs.NewClient(clientOpts)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
+	//clientOpts := hdfs.ClientOptionsFromConf(clientConf)
+	//client, err := hdfs.NewClient(clientOpts)
+	//if err != nil {
+	//	return nil, errors.WithStack(err)
+	//}
 	retStorage := &HdfsStorage{client: client}
 	retStorage.client = client
 	// 先检查该文件夹是否存在，存在需要清除文件夹内容
