@@ -289,11 +289,11 @@ func (s *HdfsStorage) GetBaseDir() string {
 
 func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageOptions) (*HdfsStorage, error) {
 	// 从命令行配置中读取配置文件
-	var retStorage HdfsStorage
 	client, err := newHdfsClientWithPath(bdh.CoreSiteConf, bdh.HdfsSiteConf)
 	if err != nil {
 		return nil, errors.Wrap(err, "newHdfsStorage error")
 	}
+	retStorage := &HdfsStorage{client: client}
 	retStorage.client = client
 	// 先检查该文件夹是否存在，存在需要清除文件夹内容
 	base := bdh.FilePath
@@ -324,7 +324,8 @@ func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageO
 	if err != nil {
 		return nil, errors.Wrapf(err, "Create folder :%v error", base+".dumptmp")
 	}
-	return &retStorage, nil
+	fmt.Println("!!!!!!!!!!!!Init OK!")
+	return retStorage, nil
 }
 
 // 进行HDFS的重连,重连错误，直接返回原来的链接
