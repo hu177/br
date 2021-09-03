@@ -299,8 +299,8 @@ func newHdfsStorage(ctx context.Context, bdh *HdfsConfig, opts *ExternalStorageO
 	// 先检查该文件夹是否存在，存在需要清除文件夹内容
 	base := bdh.FilePath
 
-	isExt, derr := retStorage.dirExist(base)
-	if derr != nil {
+	isExt, err := retStorage.dirExist(base)
+	if err != nil {
 		return nil, errors.Wrap(err, "newHdfsStorage error")
 	}
 	if isExt {
